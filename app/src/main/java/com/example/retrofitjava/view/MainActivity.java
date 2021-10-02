@@ -17,6 +17,9 @@ import com.google.gson.GsonBuilder;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -30,6 +33,8 @@ public class MainActivity extends AppCompatActivity {
     private String BASE_URL = "https://api.nomics.com/v1/";
     Retrofit retrofit;
     RecyclerViewAdapter recyclerViewAdapter;
+
+    CompositeDisposable compositeDisposable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +59,14 @@ public class MainActivity extends AppCompatActivity {
 
         CryptoAPI cryptoAPI = retrofit.create(CryptoAPI.class);
 
+        compositeDisposable = new CompositeDisposable();
+
+        compositeDisposable.add(cryptoAPI.getData()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::handleResponse));
+
+        /*
         Call<List<CryptoModel>> call = cryptoAPI.getData();
 
         call.enqueue(new Callback<List<CryptoModel>>() {
@@ -80,9 +93,25 @@ public class MainActivity extends AppCompatActivity {
                 t.printStackTrace();
             }
         });
+        */
 
     }
 
+    private void handleResponse(List<CryptoModel> cryptoModelList){
+
+        cryptoModels = new ArrayList<>(cryptoModelList);
+
+        //RecyclerView
+        binding.recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
+        recyclerViewAdapter = new RecyclerViewAdapter(cryptoModels);
+        binding.recyclerView.setAdapter(recyclerViewAdapter);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        compositeDisposable.clear();
+    }
 
     //https://api.nomics.com/v1/prices?key=8876db239510783bba108c885fd24ca9ebf7364f
 }
